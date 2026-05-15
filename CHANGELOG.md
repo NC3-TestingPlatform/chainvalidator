@@ -9,6 +9,21 @@ Version numbers follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Added
+- `pytest-mock>=3.12` added to dev extras.
+
+### Changed
+- Exit codes corrected: `INSECURE` now exits `1` (validation result, not a
+  network error); `ERROR` now exits `2` (network/connection failure);
+  `RuntimeError` propagated from `assess()` also exits `2`.
+- `reporter`: console instance renamed to private `_console` with a public
+  `console` alias; `Console` now created with `highlight=False` for
+  consistent terminal output.
+- `print_full_report`, `print_verdict`, `print_trust_anchor`, `print_chain`,
+  and `print_leaf` now accept an optional `*, console: Console | None = None`
+  parameter so callers can inject a custom console. `save_report()` always
+  writes from `_console`.
+
 ---
 
 ## [0.1.2] — 2026-05-15
