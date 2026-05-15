@@ -127,7 +127,7 @@ Omit for patch releases.>
 
 ---
 
-**Full changelog:** https://github.com/NC3-TestingPlatform/chainvalidator/blob/main/CHANGELOG.md
+**Full changelog:** https://github.com/NC3-TestingPlatform/chainvalidator/blob/master/CHANGELOG.md
 EOF
 )"
 ```
