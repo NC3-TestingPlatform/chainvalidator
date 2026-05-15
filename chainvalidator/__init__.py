@@ -19,7 +19,7 @@ from importlib.metadata import PackageNotFoundError, version
 try:
     __version__ = version("chainvalidator")
 except PackageNotFoundError:  # pragma: no cover
-    __version__ = "0.1.2"
+    __version__ = "0.1.3"
 
 # NullHandler so library users who have not configured logging
 # do not see "No handler found" warnings (PEP 3118 / logging HOWTO).
