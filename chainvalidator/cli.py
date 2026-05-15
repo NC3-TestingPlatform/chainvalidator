@@ -17,6 +17,8 @@ Usage examples::
 
 from __future__ import annotations
 
+import dataclasses
+import json
 import re
 from typing import Annotated, Optional
 
@@ -113,6 +115,11 @@ def _validate_record_type(value: str) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _print_json(report: object) -> None:
+    """Serialise *report* to stdout as pretty-printed JSON."""
+    typer.echo(json.dumps(dataclasses.asdict(report), indent=2))  # type: ignore[call-overload]
+
+
 def _version_callback(value: bool) -> None:  # pragma: no cover
     if value:
         typer.echo(f"chainvalidator {__version__}")
@@ -181,6 +188,10 @@ def cmd_check(
             ),
         ),
     ] = None,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Output results as JSON."),
+    ] = False,
 ) -> None:
     """Validate the full DNSSEC chain of trust for DOMAIN.
 
@@ -218,6 +229,15 @@ def cmd_check(
             )
         except ValueError as exc:
             console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(code=1)
+
+    if json_output:
+        _print_json(report)
+        if report.status is Status.SECURE:
+            raise typer.Exit(code=0)
+        elif report.status is Status.INSECURE:
+            raise typer.Exit(code=2)
+        else:
             raise typer.Exit(code=1)
 
     print_full_report(report)
