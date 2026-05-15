@@ -9,6 +9,11 @@ Version numbers follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Added
+- `--json` flag on `check` command — prints a JSON representation of the
+  `DNSSECReport` to stdout; exit codes are preserved (0 SECURE, 2 INSECURE,
+  1 BOGUS/ERROR), consistent with the platform-wide `--json` convention.
+
 ---
 
 ## [0.1.1] — 2026-04-27
