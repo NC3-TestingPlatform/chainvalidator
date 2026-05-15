@@ -34,15 +34,17 @@ from chainvalidator.reporter import (
 
 
 def _capture(fn, *args, **kwargs) -> str:
-    """Call *fn* with patched console and return the rendered text."""
+    """Call *fn* with patched _console and return the rendered text."""
     import chainvalidator.reporter as _rep
 
     buf = StringIO()
-    _rep.console = Console(file=buf, highlight=False, markup=False)
+    cap_console = Console(file=buf, highlight=False, markup=False)
+    original = _rep._console
+    _rep._console = cap_console
     try:
         fn(*args, **kwargs)
     finally:
-        _rep.console = Console()
+        _rep._console = original
     return buf.getvalue()
 
 
@@ -497,25 +499,25 @@ class TestSaveReport:
 
     def test_save_text_calls_save_text(self, tmp_path):
         dest = str(tmp_path / "report.txt")
-        with patch.object(_reporter_module, "console") as mock_con:
+        with patch.object(_reporter_module, "_console") as mock_con:
             save_report(dest)
         mock_con.save_text.assert_called_once_with(dest, clear=False)
 
     def test_save_svg_calls_save_svg(self, tmp_path):
         dest = str(tmp_path / "report.svg")
-        with patch.object(_reporter_module, "console") as mock_con:
+        with patch.object(_reporter_module, "_console") as mock_con:
             save_report(dest)
         mock_con.save_svg.assert_called_once_with(dest, clear=False)
 
     def test_save_html_calls_save_html(self, tmp_path):
         dest = str(tmp_path / "report.html")
-        with patch.object(_reporter_module, "console") as mock_con:
+        with patch.object(_reporter_module, "_console") as mock_con:
             save_report(dest)
         mock_con.save_html.assert_called_once_with(dest, clear=False)
 
     def test_htm_extension_calls_save_html(self, tmp_path):
         dest = str(tmp_path / "report.htm")
-        with patch.object(_reporter_module, "console") as mock_con:
+        with patch.object(_reporter_module, "_console") as mock_con:
             save_report(dest)
         mock_con.save_html.assert_called_once_with(dest, clear=False)
 
@@ -529,7 +531,7 @@ class TestSaveReport:
 
     def test_extension_is_case_insensitive(self, tmp_path):
         dest = str(tmp_path / "report.TXT")
-        with patch.object(_reporter_module, "console") as mock_con:
+        with patch.object(_reporter_module, "_console") as mock_con:
             save_report(dest)
         mock_con.save_text.assert_called_once()
 

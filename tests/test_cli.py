@@ -122,11 +122,11 @@ class TestCLICheck:
             result = runner.invoke(app, ["check", "example.com"])
         assert result.exit_code == 0
 
-    def test_insecure_exits_2(self):
+    def test_insecure_exits_1(self):
         report = _make_report(Status.INSECURE)
         with self._patch_assess(report), self._patch_print():
             result = runner.invoke(app, ["check", "example.com"])
-        assert result.exit_code == 2
+        assert result.exit_code == 1
 
     def test_bogus_exits_1(self):
         report = _make_report(Status.BOGUS)
@@ -134,16 +134,21 @@ class TestCLICheck:
             result = runner.invoke(app, ["check", "example.com"])
         assert result.exit_code == 1
 
-    def test_error_status_exits_1(self):
+    def test_error_status_exits_2(self):
         report = _make_report(Status.ERROR)
         with self._patch_assess(report), self._patch_print():
             result = runner.invoke(app, ["check", "example.com"])
-        assert result.exit_code == 1
+        assert result.exit_code == 2
 
     def test_value_error_from_assess_exits_1(self):
         with patch("chainvalidator.cli.assess", side_effect=ValueError("bad")):
             result = runner.invoke(app, ["check", "example.com"])
         assert result.exit_code == 1
+
+    def test_runtime_error_from_assess_exits_2(self):
+        with patch("chainvalidator.cli.assess", side_effect=RuntimeError("network failure")):
+            result = runner.invoke(app, ["check", "example.com"])
+        assert result.exit_code == 2
 
     def test_passes_record_type_option(self):
         report = _make_report(Status.SECURE)

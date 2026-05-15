@@ -15,7 +15,8 @@ from rich.text import Text
 
 from chainvalidator.models import ChainLink, DNSSECReport, Status
 
-console = Console(record=True)
+_console = Console(record=True, highlight=False)
+console = _console  # public alias for cli.py import
 
 # ---------------------------------------------------------------------------
 # Status styling
@@ -147,11 +148,11 @@ def save_report(path: str) -> None:
             "Use a .txt, .svg, .html, or .htm extension."
         )
     if fmt == "text":
-        console.save_text(path, clear=False)
+        _console.save_text(path, clear=False)
     elif fmt == "svg":
-        console.save_svg(path, clear=False)
+        _console.save_svg(path, clear=False)
     else:
-        console.save_html(path, clear=False)
+        _console.save_html(path, clear=False)
 
 
 # ---------------------------------------------------------------------------
@@ -159,48 +160,60 @@ def save_report(path: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def print_trust_anchor(report: DNSSECReport) -> None:
+def print_trust_anchor(report: DNSSECReport, *, console: Console | None = None) -> None:
     """Render the IANA trust anchor summary panel.
 
     :param report: The full validation report.
     :type report: ~chainvalidator.models.DNSSECReport
+    :param console: Optional Rich console to render into; defaults to the
+        module-level recording console.
+    :type console: ~rich.console.Console or None
     """
-    console.print(
+    con = console or _console
+    con.print(
         Panel("[bold]Trust Anchor[/bold] – IANA root-anchors.xml", style="blue")
     )
     if report.trust_anchor_keys:
         for key in report.trust_anchor_keys:
-            console.print(f"  [green]✔[/green] {key} — active")
+            con.print(f"  [green]✔[/green] {key} — active")
     else:
-        console.print("  [red]No active trust anchor keys found[/red]")
+        con.print("  [red]No active trust anchor keys found[/red]")
 
 
-def print_chain(report: DNSSECReport) -> None:
+def print_chain(report: DNSSECReport, *, console: Console | None = None) -> None:
     """Render the chain-of-trust table.
 
     :param report: The full validation report.
     :type report: ~chainvalidator.models.DNSSECReport
+    :param console: Optional Rich console to render into; defaults to the
+        module-level recording console.
+    :type console: ~rich.console.Console or None
     """
-    console.print(
+    con = console or _console
+    con.print(
         Panel(
             f"[bold]Chain of Trust[/bold] – {report.domain} ({report.record_type})",
             style="blue",
         )
     )
     if report.chain:
-        console.print(_chain_table(report.chain))
+        con.print(_chain_table(report.chain))
     else:
-        console.print("  [dim]No chain data available.[/dim]")
+        con.print("  [dim]No chain data available.[/dim]")
 
 
-def print_leaf(report: DNSSECReport) -> None:
+def print_leaf(report: DNSSECReport, *, console: Console | None = None) -> None:
     """Render the leaf record validation result.
 
     :param report: The full validation report.
     :type report: ~chainvalidator.models.DNSSECReport
+    :param console: Optional Rich console to render into; defaults to the
+        module-level recording console.
+    :type console: ~rich.console.Console or None
     """
+    con = console or _console
     leaf = report.leaf
-    console.print(
+    con.print(
         Panel(
             f"[bold]Leaf Record[/bold] – {report.domain} {report.record_type}",
             style="blue",
@@ -208,11 +221,11 @@ def print_leaf(report: DNSSECReport) -> None:
     )
 
     if leaf is None:
-        console.print("  [dim]Chain validation did not reach the leaf record.[/dim]")
+        con.print("  [dim]Chain validation did not reach the leaf record.[/dim]")
         return
 
     if leaf.cname_chain:
-        console.print(
+        con.print(
             f"  [dim]CNAME chain:[/dim] {report.domain}"
             + "".join(f"  →  {c}" for c in leaf.cname_chain)
         )
@@ -223,26 +236,26 @@ def print_leaf(report: DNSSECReport) -> None:
         tbl.add_column("Value")
         for r in leaf.records:
             tbl.add_row(f"{leaf.qname} IN {leaf.record_type}", r)
-        console.print(tbl)
+        con.print(tbl)
     elif leaf.nxdomain:
         if leaf.status is Status.SECURE:
-            console.print(
+            con.print(
                 f"  [green]✔[/green]  [bold]{leaf.qname}[/bold] does not exist "
                 f"(secure NXDOMAIN — denial of existence proof validated)"
             )
         else:
-            console.print(
+            con.print(
                 f"  [yellow]⚠[/yellow]  [bold]{leaf.qname}[/bold] does not exist "
                 f"(NXDOMAIN — no signed denial proof available)"
             )
     elif leaf.nodata:
         if leaf.status is Status.SECURE:
-            console.print(
+            con.print(
                 f"  [green]✔[/green]  [bold]{leaf.qname}[/bold] has no "
                 f"{leaf.record_type} records (secure NODATA — NSEC3 proof validated)"
             )
     else:
-        console.print(
+        con.print(
             f"  [dim]No {leaf.record_type} records found (NODATA or NXDOMAIN).[/dim]"
         )
 
@@ -250,22 +263,26 @@ def print_leaf(report: DNSSECReport) -> None:
         rrsig_line = f"RRSIG validated with DNSKEY={leaf.rrsig_used}"
         if leaf.rrsig_expires:
             rrsig_line += f"  (expires {leaf.rrsig_expires})"
-        console.print(f"  [green]{rrsig_line}[/green]")
+        con.print(f"  [green]{rrsig_line}[/green]")
 
     for note in leaf.notes:
-        console.print(f"  [cyan]ℹ[/cyan]  {note}")
+        con.print(f"  [cyan]ℹ[/cyan]  {note}")
     for warn in leaf.warnings:
-        console.print(f"  [yellow]⚠[/yellow]  {warn}")
+        con.print(f"  [yellow]⚠[/yellow]  {warn}")
     for err in leaf.errors:
-        console.print(f"  [red]✘[/red]  {err}")
+        con.print(f"  [red]✘[/red]  {err}")
 
 
-def print_verdict(report: DNSSECReport) -> None:
+def print_verdict(report: DNSSECReport, *, console: Console | None = None) -> None:
     """Render the final verdict panel.
 
     :param report: The full validation report.
     :type report: ~chainvalidator.models.DNSSECReport
+    :param console: Optional Rich console to render into; defaults to the
+        module-level recording console.
+    :type console: ~rich.console.Console or None
     """
+    con = console or _console
     style = _status_panel_style(report.status)
 
     lines: list[str] = []
@@ -288,7 +305,7 @@ def print_verdict(report: DNSSECReport) -> None:
         for e in report.errors:
             lines.append(f"    [red]•[/red] {e}")
 
-    console.print(Panel("\n".join(lines), title="Verdict", style=style))
+    con.print(Panel("\n".join(lines), title="Verdict", style=style))
 
 
 # ---------------------------------------------------------------------------
@@ -296,7 +313,7 @@ def print_verdict(report: DNSSECReport) -> None:
 # ---------------------------------------------------------------------------
 
 
-def print_full_report(report: DNSSECReport) -> None:
+def print_full_report(report: DNSSECReport, *, console: Console | None = None) -> None:
     """Render the complete :class:`~chainvalidator.models.DNSSECReport` to the terminal.
 
     Sections are printed in order: header rule, trust anchor, chain table,
@@ -304,12 +321,16 @@ def print_full_report(report: DNSSECReport) -> None:
 
     :param report: The fully populated validation report.
     :type report: ~chainvalidator.models.DNSSECReport
+    :param console: Optional Rich console to render into; defaults to the
+        module-level recording console.
+    :type console: ~rich.console.Console or None
     """
-    console.rule(
+    con = console or _console
+    con.rule(
         f"[bold cyan]DNSSEC Validation Report: {report.domain} ({report.record_type})[/bold cyan]"
     )
-    print_trust_anchor(report)
-    print_chain(report)
-    print_leaf(report)
-    print_verdict(report)
-    console.rule("[dim]End of Report[/dim]")
+    print_trust_anchor(report, console=con)
+    print_chain(report, console=con)
+    print_leaf(report, console=con)
+    print_verdict(report, console=con)
+    con.rule("[dim]End of Report[/dim]")

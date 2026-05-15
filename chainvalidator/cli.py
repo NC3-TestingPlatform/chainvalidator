@@ -206,8 +206,8 @@ def cmd_check(
 
     \\b
       0  fully secure
-      2  insecure delegation (chain not anchored end-to-end)
-      1  bogus / validation failed
+      1  insecure delegation / bogus / validation failed
+      2  network/connection error
     """
     with Progress(
         SpinnerColumn(),
@@ -230,12 +230,15 @@ def cmd_check(
         except ValueError as exc:
             console.print(f"[red]Error:[/red] {exc}")
             raise typer.Exit(code=1)
+        except RuntimeError as exc:
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(code=2)
 
     if json_output:
         _print_json(report)
         if report.status is Status.SECURE:
             raise typer.Exit(code=0)
-        elif report.status is Status.INSECURE:
+        elif report.status is Status.ERROR:
             raise typer.Exit(code=2)
         else:
             raise typer.Exit(code=1)
@@ -252,7 +255,7 @@ def cmd_check(
 
     if report.status is Status.SECURE:
         raise typer.Exit(code=0)
-    elif report.status is Status.INSECURE:
+    elif report.status is Status.ERROR:
         raise typer.Exit(code=2)
     else:
         raise typer.Exit(code=1)

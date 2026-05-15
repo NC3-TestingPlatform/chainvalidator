@@ -70,7 +70,7 @@ where = ["."]
 include = ["chainvalidator*"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pytest-cov>=5"]
+dev = ["pytest>=8", "pytest-cov>=5", "pytest-mock>=3.12"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
