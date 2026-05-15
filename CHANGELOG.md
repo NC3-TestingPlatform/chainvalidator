@@ -9,6 +9,10 @@ Version numbers follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+---
+
+## [0.1.2] — 2026-05-15
+
 ### Added
 - `--json` flag on `check` command — prints a JSON representation of the
   `DNSSECReport` to stdout; exit codes are preserved (0 SECURE, 2 INSECURE,
@@ -39,6 +43,7 @@ Version numbers follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ---
 
-[Unreleased]: https://github.com/NC3-TestingPlatform/chainvalidator/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/NC3-TestingPlatform/chainvalidator/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/NC3-TestingPlatform/chainvalidator/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/NC3-TestingPlatform/chainvalidator/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/NC3-TestingPlatform/chainvalidator/releases/tag/v0.1.0
