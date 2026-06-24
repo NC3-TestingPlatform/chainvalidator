@@ -10,6 +10,7 @@ and setting levels on that logger; nothing is printed directly.
 
 The class populates a :class:`~chainvalidator.models.DNSSECReport` as it
 runs so that :mod:`chainvalidator.reporter` can render a structured summary.
+
 """
 
 from __future__ import annotations
@@ -18,7 +19,6 @@ import base64
 import logging
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
-from typing import Optional
 
 import dns.dnssec
 import dns.exception
@@ -153,7 +153,7 @@ class DNSSECChecker:
 
     # ── Public entry point ────────────────────────────────────────────────────
 
-    def check(self) -> Optional[bool]:
+    def check(self) -> bool | None:
         """Run the full chain-of-trust validation.
 
         :returns:
@@ -196,9 +196,15 @@ class DNSSECChecker:
                 return False
 
         target_zone = zones[-1]
+        target_keys = validated_keys.get(target_zone)
+        if target_keys is None:
+            # Zone is unsigned (insecure delegation); _handle_insecure_delegation
+            # already recorded the warning, so just finalise and report insecure.
+            self._finalise()
+            return None
         self._check_final_rrset(
             target_zone,
-            validated_keys[target_zone],
+            target_keys,
             validated_keys=validated_keys,
         )
         # Note: _check_final_rrset records errors/warnings via _fail/_warn;
@@ -358,41 +364,45 @@ class DNSSECChecker:
         now = datetime.now(timezone.utc)
         active: list[Rdata] = []
 
-        for kd in ET.fromstring(xml_data).findall(".//KeyDigest"):
-            valid_from = kd.attrib.get("validFrom")
-            valid_until = kd.attrib.get("validUntil")
-            flags_el = kd.find("Flags")
-            if flags_el is None:
-                continue
-            if int(flags_el.text) != 257:
-                continue
+        try:
+            for kd in ET.fromstring(xml_data).findall(".//KeyDigest"):
+                valid_from = kd.attrib.get("validFrom")
+                valid_until = kd.attrib.get("validUntil")
+                flags_el = kd.find("Flags")
+                if flags_el is None:
+                    continue
+                if int(flags_el.text) != 257:
+                    continue
 
-            keytag = int(kd.find("KeyTag").text)
-            algorithm = int(kd.find("Algorithm").text)
-            digest_type = int(kd.find("DigestType").text)
-            digest = kd.find("Digest").text.strip().lower()
+                keytag = int(kd.find("KeyTag").text)
+                algorithm = int(kd.find("Algorithm").text)
+                digest_type = int(kd.find("DigestType").text)
+                digest = kd.find("Digest").text.strip().lower()
 
-            if valid_from and datetime.fromisoformat(valid_from) > now:
-                logger.debug("  Skipping future trust anchor DS=%s", keytag)
-                continue
-            if valid_until and datetime.fromisoformat(valid_until) < now:
-                logger.debug("  Skipping expired trust anchor DS=%s", keytag)
-                continue
+                if valid_from and datetime.fromisoformat(valid_from) > now:
+                    logger.debug("  Skipping future trust anchor DS=%s", keytag)
+                    continue
+                if valid_until and datetime.fromisoformat(valid_until) < now:
+                    logger.debug("  Skipping expired trust anchor DS=%s", keytag)
+                    continue
 
-            ds = dns.rdata.from_text(
-                dns.rdataclass.IN,
-                dns.rdatatype.DS,
-                f"{keytag} {algorithm} {digest_type} {digest}",
-            )
-            active.append(ds)
-            label = f"DS={keytag}/{DIGEST_MAP.get(digest_type, str(digest_type))}"
-            self.report.trust_anchor_keys.append(label)
-            logger.info(
-                "  %s Trust anchor %s (algorithm %s) -- active",
-                GREEN,
-                label,
-                algo_name(algorithm),
-            )
+                ds = dns.rdata.from_text(
+                    dns.rdataclass.IN,
+                    dns.rdatatype.DS,
+                    f"{keytag} {algorithm} {digest_type} {digest}",
+                )
+                active.append(ds)
+                label = f"DS={keytag}/{DIGEST_MAP.get(digest_type, str(digest_type))}"
+                self.report.trust_anchor_keys.append(label)
+                logger.info(
+                    "  %s Trust anchor %s (algorithm %s) -- active",
+                    GREEN,
+                    label,
+                    algo_name(algorithm),
+                )
+        except Exception as exc:
+            self._fail(f"Failed to parse root-anchors.xml: {exc}")
+            return []
 
         if not active:
             self._fail("No active trust anchor DS records found")
@@ -797,9 +807,9 @@ class DNSSECChecker:
         self,
         zone: str,
         zone_dnskeys: dns.rrset.RRset,
-        qname: Optional[str] = None,
+        qname: str | None = None,
         depth: int = 0,
-        validated_keys: Optional[dict] = None,
+        validated_keys: dict | None = None,
     ) -> bool:
         """Validate the target RRset for *qname* using *zone_dnskeys*.
 
@@ -903,7 +913,7 @@ class DNSSECChecker:
     def _validate_direct_rrset(
         self,
         rrset: dns.rrset.RRset,
-        rrsig_rrset: Optional[dns.rrset.RRset],
+        rrsig_rrset: dns.rrset.RRset | None,
         zone_dnskeys: dns.rrset.RRset,
         zone: str,
         qname: str,
@@ -979,12 +989,12 @@ class DNSSECChecker:
     def _follow_cname(
         self,
         cname_rrset: dns.rrset.RRset,
-        cname_rrsig: Optional[dns.rrset.RRset],
+        cname_rrsig: dns.rrset.RRset | None,
         zone_dnskeys: dns.rrset.RRset,
         zone: str,
         qname: str,
         depth: int,
-        validated_keys: Optional[dict],
+        validated_keys: dict | None,
         leaf: LeafResult,
     ) -> bool:
         """Validate a CNAME RRset and recursively validate its target.
@@ -1038,19 +1048,32 @@ class DNSSECChecker:
             if child in shared_keys:
                 logger.debug("  Skipping already-validated zone %s", child)
                 continue
+            parent_keys = shared_keys.get(parent)
+            if parent_keys is None:
+                msg = (
+                    f"CNAME target zone {child!r} cannot be validated: "
+                    f"parent zone {parent!r} is unsigned (insecure delegation)"
+                )
+                self._fail(msg)
+                return False
             ok = self._check_zone(
                 parent_zone=parent,
                 child_zone=child,
-                parent_validated_keys=shared_keys[parent],
+                parent_validated_keys=parent_keys,
                 validated_keys=shared_keys,
             )
             if not ok:
                 return False
 
         target_zone = target_zones[-1]
+        target_keys = shared_keys.get(target_zone)
+        if target_keys is None:
+            msg = f"CNAME target zone {target_zone!r} has no validated keys"
+            self._fail(msg)
+            return False
         return self._check_final_rrset(
             zone=target_zone,
-            zone_dnskeys=shared_keys[target_zone],
+            zone_dnskeys=target_keys,
             qname=cname_target,
             depth=depth + 1,
             validated_keys=shared_keys,
@@ -1118,7 +1141,7 @@ class DNSSECChecker:
     def _validate_nodata_nsec(
         self,
         nsec_rrset: dns.rrset.RRset,
-        nsec_rrsig: Optional[dns.rrset.RRset],
+        nsec_rrsig: dns.rrset.RRset | None,
         zone_dnskeys: dns.rrset.RRset,
         zone: str,
         qname: str,
@@ -1496,7 +1519,7 @@ class DNSSECChecker:
                 )
             return ok
 
-        def find_covering(target_hash: str) -> Optional[str]:
+        def find_covering(target_hash: str) -> str | None:
             """Return the owner hash of the NSEC3 that covers *target_hash*.
 
             :param target_hash: Base32hex hash to search for.
@@ -1513,7 +1536,7 @@ class DNSSECChecker:
 
         qname_stripped = qname.rstrip(".")
         labels = qname_stripped.split(".")
-        closest_encloser: Optional[str] = None
+        closest_encloser: str | None = None
 
         for i in range(len(labels)):
             candidate = ".".join(labels[i:]) + "."
@@ -1574,7 +1597,7 @@ class DNSSECChecker:
 
     # ── Nameserver helpers ────────────────────────────────────────────────────
 
-    def _get_ns_ip_for_zone(self, zone: str, validated_keys: dict) -> Optional[str]:
+    def _get_ns_ip_for_zone(self, zone: str, validated_keys: dict) -> str | None:
         """Return an authoritative IPv4 address for *zone* from the NS map.
 
         :param zone: Zone name to look up.

@@ -11,6 +11,29 @@ Version numbers follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ---
 
+## [0.1.4] — 2026-06-24
+
+### Fixed
+- **HIGH** — `_follow_cname`: replaced `shared_keys[parent]` / `shared_keys[target_zone]`
+  direct lookups with `.get()` guards; a cross-TLD CNAME (e.g. `foo.com → bar.net`)
+  previously raised `KeyError` because the target TLD's parent zone was never validated
+  in the original chain walk.
+- **MEDIUM** — `check()`: added `None` guard before calling `_check_final_rrset` when
+  the target zone is unsigned (insecure delegation with no DNSKEY records); previously
+  raised `TypeError: 'NoneType' object is not iterable` for "island of security" zones.
+- `_load_trust_anchor`: wrapped XML parsing loop in `try/except` so a malformed
+  `root-anchors.xml` produces a clean error message instead of a raw traceback.
+- Improved CNAME error message: "unvalidated parent" → "parent zone is unsigned
+  (insecure delegation)" for clarity.
+
+### Changed
+- All type annotations migrated from `Optional[X]` to `X | None` (PEP 604); removed
+  all `from typing import Optional` imports.
+- Test `_capture` helper updated to inject the console via keyword argument instead
+  of patching the module-level `_console` attribute.
+
+---
+
 ## [0.1.3] — 2026-05-15
 
 ### Added
@@ -62,7 +85,8 @@ Version numbers follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ---
 
-[Unreleased]: https://github.com/NC3-TestingPlatform/chainvalidator/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/NC3-TestingPlatform/chainvalidator/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/NC3-TestingPlatform/chainvalidator/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/NC3-TestingPlatform/chainvalidator/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/NC3-TestingPlatform/chainvalidator/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/NC3-TestingPlatform/chainvalidator/compare/v0.1.0...v0.1.1

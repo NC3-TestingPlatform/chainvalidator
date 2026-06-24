@@ -2,13 +2,13 @@
 
 All pure-logic helpers that operate on already-fetched DNS objects —
 no network I/O in this module.
+
 """
 
 from __future__ import annotations
 
 import base64
 import hashlib
-from typing import Optional
 
 import dns.dnssec
 import dns.exception
@@ -53,7 +53,7 @@ def validate_rrsig_over_rrset(
     rrsig_rrset: dns.rrset.RRset,
     dnskeys: dns.rrset.RRset,
     zone: str,
-) -> tuple[bool, Optional[int]]:
+) -> tuple[bool, int | None]:
     """Attempt to validate *rrsig_rrset* over *rrset* using any key in *dnskeys*.
 
     Each DNSKEY is tried in turn; validation succeeds as soon as one key

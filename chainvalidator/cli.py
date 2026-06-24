@@ -13,6 +13,7 @@ Usage examples::
     chainvalidator info algorithms
     chainvalidator info digests
     chainvalidator info root-servers
+
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import re
-from typing import Annotated, Optional
+from typing import Annotated
 
 import dns.rdatatype
 import typer
@@ -129,7 +130,7 @@ def _version_callback(value: bool) -> None:  # pragma: no cover
 @app.callback()
 def _main(
     version: Annotated[
-        Optional[bool],
+        bool | None,
         typer.Option(
             "--version",
             "-V",

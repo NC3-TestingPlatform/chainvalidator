@@ -3,13 +3,13 @@
 All result objects are plain dataclasses — no Rich or DNS library imports.
 They are constructed by :mod:`chainvalidator.checker` and consumed by
 :mod:`chainvalidator.reporter`.
+
 """
 
 from __future__ import annotations
 
 import enum
 from dataclasses import dataclass, field
-from typing import Optional
 
 # ---------------------------------------------------------------------------
 # Status enum
@@ -83,7 +83,7 @@ class ChainLink:
     ds_records: list[str] = field(default_factory=list)
     dnskeys: list[str] = field(default_factory=list)
     ds_matched: list[str] = field(default_factory=list)
-    rrsig_used: Optional[int] = None
+    rrsig_used: int | None = None
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
@@ -114,7 +114,7 @@ class LeafResult:
     qname: str
     record_type: str
     records: list[str] = field(default_factory=list)
-    rrsig_used: Optional[int] = None
+    rrsig_used: int | None = None
     rrsig_expires: str = ""
     cname_chain: list[str] = field(default_factory=list)
     nxdomain: bool = False
@@ -154,7 +154,7 @@ class DNSSECReport:
     status: Status = Status.SECURE
     trust_anchor_keys: list[str] = field(default_factory=list)
     chain: list[ChainLink] = field(default_factory=list)
-    leaf: Optional[LeafResult] = None
+    leaf: LeafResult | None = None
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 

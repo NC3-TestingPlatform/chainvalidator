@@ -3,12 +3,12 @@
 All functions perform network I/O and raise :exc:`RuntimeError` on failure
 so callers can decide how to handle errors without catching DNS-library
 exceptions directly.
+
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import dns.exception
 import dns.flags
@@ -90,7 +90,7 @@ def udp_query(
 def extract_rrsets(
     response: dns.message.Message,
     rdtype: int,
-) -> tuple[Optional[dns.rrset.RRset], Optional[dns.rrset.RRset]]:
+) -> tuple[dns.rrset.RRset | None, dns.rrset.RRset | None]:
     """Scan all sections of *response* and return the target RRset plus its RRSIG.
 
     :param response: A parsed DNS response message.
@@ -123,7 +123,7 @@ def get_ds_from_parent(
     zone: str,
     parent_ns: str,
     timeout: float = DNS_TIMEOUT,
-) -> tuple[Optional[dns.rrset.RRset], Optional[dns.rrset.RRset]]:
+) -> tuple[dns.rrset.RRset | None, dns.rrset.RRset | None]:
     """Query *parent_ns* for the DS RRset of *zone* and its covering RRSIG.
 
     :param zone: Child zone name (e.g. ``"example.com."``).
@@ -144,7 +144,7 @@ def get_dnskey(
     zone: str,
     ns: str,
     timeout: float = DNS_TIMEOUT,
-) -> tuple[Optional[dns.rrset.RRset], Optional[dns.rrset.RRset]]:
+) -> tuple[dns.rrset.RRset | None, dns.rrset.RRset | None]:
     """Query *ns* for the DNSKEY RRset of *zone* and its covering RRSIG.
 
     :param zone: Zone name (e.g. ``"example.com."``).
