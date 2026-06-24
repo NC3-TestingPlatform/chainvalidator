@@ -4,9 +4,12 @@ All ``print_*`` functions accept the corresponding model objects and render
 them to the terminal using Rich tables and panels.  The module-level
 ``console`` instance can be imported by other modules that need to write to
 the same output stream.
+
 """
 
 from __future__ import annotations
+
+import os
 
 from rich.console import Console
 from rich.panel import Panel
@@ -16,7 +19,7 @@ from rich.text import Text
 from chainvalidator.models import ChainLink, DNSSECReport, Status
 
 _console = Console(record=True, highlight=False)
-console = _console  # public alias for cli.py import
+console = _console
 
 # ---------------------------------------------------------------------------
 # Status styling
@@ -138,8 +141,6 @@ def save_report(path: str) -> None:
         values listed above.
     :raises OSError: If the file cannot be written.
     """
-    import os
-
     ext = os.path.splitext(path)[1].lower()
     fmt = _FORMAT_BY_EXT.get(ext)
     if fmt is None:
@@ -165,8 +166,7 @@ def print_trust_anchor(report: DNSSECReport, *, console: Console | None = None) 
 
     :param report: The full validation report.
     :type report: ~chainvalidator.models.DNSSECReport
-    :param console: Optional Rich console to render into; defaults to the
-        module-level recording console.
+    :param console: Optional Rich console override; defaults to the module-level instance.
     :type console: ~rich.console.Console or None
     """
     con = console or _console
@@ -185,8 +185,7 @@ def print_chain(report: DNSSECReport, *, console: Console | None = None) -> None
 
     :param report: The full validation report.
     :type report: ~chainvalidator.models.DNSSECReport
-    :param console: Optional Rich console to render into; defaults to the
-        module-level recording console.
+    :param console: Optional Rich console override; defaults to the module-level instance.
     :type console: ~rich.console.Console or None
     """
     con = console or _console
@@ -207,8 +206,7 @@ def print_leaf(report: DNSSECReport, *, console: Console | None = None) -> None:
 
     :param report: The full validation report.
     :type report: ~chainvalidator.models.DNSSECReport
-    :param console: Optional Rich console to render into; defaults to the
-        module-level recording console.
+    :param console: Optional Rich console override; defaults to the module-level instance.
     :type console: ~rich.console.Console or None
     """
     con = console or _console
@@ -278,8 +276,7 @@ def print_verdict(report: DNSSECReport, *, console: Console | None = None) -> No
 
     :param report: The full validation report.
     :type report: ~chainvalidator.models.DNSSECReport
-    :param console: Optional Rich console to render into; defaults to the
-        module-level recording console.
+    :param console: Optional Rich console override; defaults to the module-level instance.
     :type console: ~rich.console.Console or None
     """
     con = console or _console
@@ -321,8 +318,7 @@ def print_full_report(report: DNSSECReport, *, console: Console | None = None) -
 
     :param report: The fully populated validation report.
     :type report: ~chainvalidator.models.DNSSECReport
-    :param console: Optional Rich console to render into; defaults to the
-        module-level recording console.
+    :param console: Optional Rich console override; defaults to the module-level instance.
     :type console: ~rich.console.Console or None
     """
     con = console or _console

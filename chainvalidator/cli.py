@@ -13,6 +13,7 @@ Usage examples::
     chainvalidator info algorithms
     chainvalidator info digests
     chainvalidator info root-servers
+
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import re
-from typing import Annotated, Optional
+from typing import Annotated
 
 import dns.rdatatype
 import typer
@@ -129,7 +130,7 @@ def _version_callback(value: bool) -> None:  # pragma: no cover
 @app.callback()
 def _main(
     version: Annotated[
-        Optional[bool],
+        bool | None,
         typer.Option(
             "--version",
             "-V",
@@ -205,9 +206,9 @@ def cmd_check(
     Exit codes:
 
     \\b
-      0  fully secure
-      1  insecure delegation / bogus / validation failed
-      2  network/connection error
+      0  fully secure (DNSSEC chain validated)
+      1  validation failure (insecure / bogus / error status)
+      2  network/connection error (transport failure)
     """
     with Progress(
         SpinnerColumn(),
@@ -238,8 +239,6 @@ def cmd_check(
         _print_json(report)
         if report.status is Status.SECURE:
             raise typer.Exit(code=0)
-        elif report.status is Status.ERROR:
-            raise typer.Exit(code=2)
         else:
             raise typer.Exit(code=1)
 
@@ -255,8 +254,6 @@ def cmd_check(
 
     if report.status is Status.SECURE:
         raise typer.Exit(code=0)
-    elif report.status is Status.ERROR:
-        raise typer.Exit(code=2)
     else:
         raise typer.Exit(code=1)
 

@@ -134,11 +134,11 @@ class TestCLICheck:
             result = runner.invoke(app, ["check", "example.com"])
         assert result.exit_code == 1
 
-    def test_error_status_exits_2(self):
+    def test_error_status_exits_1(self):
         report = _make_report(Status.ERROR)
         with self._patch_assess(report), self._patch_print():
             result = runner.invoke(app, ["check", "example.com"])
-        assert result.exit_code == 2
+        assert result.exit_code == 1
 
     def test_value_error_from_assess_exits_1(self):
         with patch("chainvalidator.cli.assess", side_effect=ValueError("bad")):
@@ -282,3 +282,50 @@ class TestCLICheckOutput:
             result = runner.invoke(app, ["check", "example.com", "-o", dest])
         assert result.exit_code == 0
         mock_save.assert_called_once_with(dest)
+
+
+# ---------------------------------------------------------------------------
+# CLI: check --json flag
+# ---------------------------------------------------------------------------
+
+
+def _make_report(status: Status) -> DNSSECReport:
+    return DNSSECReport(domain="example.com", record_type="A", status=status)
+
+
+class TestCLICheckJson:
+    """Tests for the ``--json`` flag on ``chainvalidator check``."""
+
+    def test_secure_json_exits_0(self):
+        report = _make_report(Status.SECURE)
+        with patch("chainvalidator.cli.assess", return_value=report):
+            result = runner.invoke(app, ["check", "example.com", "--json"])
+        assert result.exit_code == 0
+
+    def test_insecure_json_exits_1(self):
+        report = _make_report(Status.INSECURE)
+        with patch("chainvalidator.cli.assess", return_value=report):
+            result = runner.invoke(app, ["check", "example.com", "--json"])
+        assert result.exit_code == 1
+
+    def test_bogus_json_exits_1(self):
+        report = _make_report(Status.BOGUS)
+        with patch("chainvalidator.cli.assess", return_value=report):
+            result = runner.invoke(app, ["check", "example.com", "--json"])
+        assert result.exit_code == 1
+
+    def test_error_json_exits_1(self):
+        report = _make_report(Status.ERROR)
+        with patch("chainvalidator.cli.assess", return_value=report):
+            result = runner.invoke(app, ["check", "example.com", "--json"])
+        assert result.exit_code == 1
+
+    def test_json_output_is_valid_json(self):
+        import json
+
+        report = _make_report(Status.SECURE)
+        with patch("chainvalidator.cli.assess", return_value=report):
+            result = runner.invoke(app, ["check", "example.com", "--json"])
+        data = json.loads(result.output)
+        assert data["domain"] == "example.com"
+        assert data["status"] == "secure"
