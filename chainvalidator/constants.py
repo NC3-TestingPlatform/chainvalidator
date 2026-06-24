@@ -1,6 +1,7 @@
 """Shared constants and lookup tables for chainvalidator.
 
-All values are protocol-defined and do not depend on runtime state.
+Contains protocol-defined values and a single stateless helper for
+selecting a root name server.
 """
 
 from __future__ import annotations

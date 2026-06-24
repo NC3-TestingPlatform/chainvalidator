@@ -61,6 +61,8 @@ from chainvalidator.models import ChainLink, DNSSECReport, LeafResult, Status
 
 logger = logging.getLogger("chainvalidator")
 
+_MAX_CNAME_DEPTH = 8
+
 
 class DNSSECChecker:
     """Full DNSSEC chain-of-trust validator.
@@ -176,7 +178,7 @@ class DNSSECChecker:
             self._finalise()
             return False
 
-        validated_keys: dict[str, dns.rrset.RRset] = {}
+        validated_keys: dict[str, dns.rrset.RRset | None] = {}
 
         if not self._check_root(trust_anchor_ds, validated_keys):
             self._finalise()
@@ -413,7 +415,7 @@ class DNSSECChecker:
     def _check_root(
         self,
         trust_anchor_ds: list[Rdata],
-        validated_keys: dict,
+        validated_keys: dict[str, dns.rrset.RRset | None],
     ) -> bool:
         """Validate the root zone DNSKEY RRset against the trust anchor.
 
@@ -518,7 +520,7 @@ class DNSSECChecker:
         parent_zone: str,
         child_zone: str,
         parent_validated_keys: dns.rrset.RRset,
-        validated_keys: dict,
+        validated_keys: dict[str, dns.rrset.RRset | None],
     ) -> bool:
         """Validate the DS → DNSKEY → RRSIG chain for a single delegation.
 
@@ -529,7 +531,7 @@ class DNSSECChecker:
         :param parent_validated_keys: Trusted DNSKEY RRset for *parent_zone*.
         :type parent_validated_keys: dns.rrset.RRset
         :param validated_keys: Shared dict updated in-place with child keys.
-        :type validated_keys: dict
+        :type validated_keys: dict[str, dns.rrset.RRset or None]
         :returns: ``True`` on success or insecure delegation; ``False`` on hard error.
         :rtype: bool
         """
@@ -539,7 +541,7 @@ class DNSSECChecker:
 
         link = ChainLink(zone=child_zone, parent_zone=parent_zone, status=Status.SECURE)
 
-        parent_ns_ip = self._get_ns_ip_for_zone(parent_zone, validated_keys)
+        parent_ns_ip = self._get_ns_ip_for_zone(parent_zone)
         if not parent_ns_ip:
             msg = f"Could not find a nameserver for parent zone {parent_zone}"
             self._fail(msg)
@@ -711,7 +713,7 @@ class DNSSECChecker:
         self,
         child_zone: str,
         parent_ns_ip: str,
-        validated_keys: dict,
+        validated_keys: dict[str, dns.rrset.RRset | None],
         link: ChainLink,
     ) -> bool:
         """Handle a delegation with no DS record (insecure island of security).
@@ -720,7 +722,8 @@ class DNSSECChecker:
         :param parent_ns_ip: IPv4 address of the parent NS.
         :param validated_keys: Shared dict updated in-place.
         :param link: :class:`ChainLink` for this zone, updated in-place.
-        :returns: Always ``True`` — insecure is not a hard failure.
+        :returns: ``True`` when the delegation is resolved (insecure or unsigned);
+            ``False`` when no nameserver for *child_zone* can be found.
         :rtype: bool
         """
         msg = (
@@ -809,7 +812,7 @@ class DNSSECChecker:
         zone_dnskeys: dns.rrset.RRset,
         qname: str | None = None,
         depth: int = 0,
-        validated_keys: dict | None = None,
+        validated_keys: dict[str, dns.rrset.RRset | None] | None = None,
     ) -> bool:
         """Validate the target RRset for *qname* using *zone_dnskeys*.
 
@@ -826,9 +829,8 @@ class DNSSECChecker:
         :returns: ``True`` if the RRset is validated; ``False`` on error.
         :rtype: bool
         """
-        MAX_CNAME_DEPTH = 8
-        if depth > MAX_CNAME_DEPTH:
-            self._fail("CNAME chain too deep (> 8 hops) -- possible loop")
+        if depth > _MAX_CNAME_DEPTH:
+            self._fail(f"CNAME chain too deep (> {_MAX_CNAME_DEPTH} hops) -- possible loop")
             return False
 
         if qname is None:
@@ -843,7 +845,7 @@ class DNSSECChecker:
         if depth == 0:
             self.report.leaf = leaf
 
-        ns_list = self._get_authoritative_ns(zone, zone_dnskeys)
+        ns_list = self._get_authoritative_ns(zone)
         if not ns_list:
             msg = f"Could not find authoritative NS for {zone}"
             self._fail(msg)
@@ -994,7 +996,7 @@ class DNSSECChecker:
         zone: str,
         qname: str,
         depth: int,
-        validated_keys: dict | None,
+        validated_keys: dict[str, dns.rrset.RRset | None] | None,
         leaf: LeafResult,
     ) -> bool:
         """Validate a CNAME RRset and recursively validate its target.
@@ -1597,12 +1599,11 @@ class DNSSECChecker:
 
     # ── Nameserver helpers ────────────────────────────────────────────────────
 
-    def _get_ns_ip_for_zone(self, zone: str, validated_keys: dict) -> str | None:
+    def _get_ns_ip_for_zone(self, zone: str) -> str | None:
         """Return an authoritative IPv4 address for *zone* from the NS map.
 
         :param zone: Zone name to look up.
         :type zone: str
-        :param validated_keys: Unused; retained for uniform helper signature.
         :returns: An IPv4 address string, or ``None``.
         :rtype: str or None
         """
@@ -1664,14 +1665,11 @@ class DNSSECChecker:
                     logger.debug("  Could not resolve NS %s: %s", name, exc)
         return result
 
-    def _get_authoritative_ns(
-        self, zone: str, zone_dnskeys: dns.rrset.RRset
-    ) -> list[tuple[str, str]]:
+    def _get_authoritative_ns(self, zone: str) -> list[tuple[str, str]]:
         """Return the cached authoritative NS list for *zone*.
 
         :param zone: Zone name to look up.
         :type zone: str
-        :param zone_dnskeys: Unused; retained for uniform helper signature.
         :returns: ``[(ns_name, ip), …]``.
         :rtype: list[tuple[str, str]]
         """

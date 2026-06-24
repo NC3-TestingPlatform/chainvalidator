@@ -117,6 +117,16 @@ class TestExtractRrsets:
         _, rrsig_out = extract_rrsets(resp, dns.rdatatype.A)
         assert rrsig_out is None
 
+    def test_finds_rrsig_in_authority_when_absent_from_answer(self):
+        """RRSIG in authority section is returned when not present in answer."""
+        a_rr = make_a_rrset()
+        rrsig = make_rrsig_rrset(type_covered=dns.rdatatype.A)
+        resp = make_response_with_answer([a_rr])
+        resp.authority.append(rrsig)
+        rrset, rrsig_out = extract_rrsets(resp, dns.rdatatype.A)
+        assert rrset is a_rr
+        assert rrsig_out is rrsig
+
 
 # ---------------------------------------------------------------------------
 # get_ds_from_parent / get_dnskey

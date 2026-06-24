@@ -1142,7 +1142,7 @@ class TestNsHelpers:
     def test_get_ns_ip_from_map(self):
         c = _make_checker()
         c._zone_ns_map = {"example.com.": [("ns1.", "5.5.5.5")]}
-        ip = c._get_ns_ip_for_zone("example.com.", {})
+        ip = c._get_ns_ip_for_zone("example.com.")
         assert ip == "5.5.5.5"
 
     def test_get_ns_ip_root_fallback(self):
@@ -1152,19 +1152,19 @@ class TestNsHelpers:
             "chainvalidator.checker.pick_root_server",
             return_value=("a.root", "1.1.1.1"),
         ):
-            ip = c._get_ns_ip_for_zone(".", {})
+            ip = c._get_ns_ip_for_zone(".")
         assert ip == "1.1.1.1"
 
     def test_get_ns_ip_unknown_zone_returns_none(self):
         c = _make_checker()
         c._zone_ns_map = {}
-        ip = c._get_ns_ip_for_zone("unknown.zone.", {})
+        ip = c._get_ns_ip_for_zone("unknown.zone.")
         assert ip is None
 
     def test_get_authoritative_ns_from_map(self):
         c = _make_checker()
         c._zone_ns_map = {"example.com.": [("ns1.", "1.2.3.4")]}
-        ns = c._get_authoritative_ns("example.com.", MagicMock())
+        ns = c._get_authoritative_ns("example.com.")
         assert ns == [("ns1.", "1.2.3.4")]
 
     def test_get_authoritative_ns_root_fallback(self):
@@ -1174,13 +1174,13 @@ class TestNsHelpers:
             "chainvalidator.checker.pick_root_server",
             return_value=("a.root", "1.1.1.1"),
         ):
-            ns = c._get_authoritative_ns(".", MagicMock())
+            ns = c._get_authoritative_ns(".")
         assert ns == [("a.root", "1.1.1.1")]
 
     def test_get_authoritative_ns_unknown_returns_empty(self):
         c = _make_checker()
         c._zone_ns_map = {}
-        ns = c._get_authoritative_ns("unknown.", MagicMock())
+        ns = c._get_authoritative_ns("unknown.")
         assert ns == []
 
 
@@ -1709,6 +1709,84 @@ class TestFollowCnameComplete:
                             leaf,
                         )
         assert result is True
+
+    def test_cname_parent_zone_unsigned(self):
+        """_follow_cname returns False when a parent zone is unsigned (keys=None)."""
+        c = self._checker_with_ns_map()
+        dnskeys = make_dnskey_rrset("example.com.")
+
+        cname_rr = make_cname_rrset("www.example.com.", "target.other.com.")
+        cname_rrsig = make_rrsig_rrset(
+            "www.example.com.", type_covered=dns.rdatatype.CNAME
+        )
+
+        from chainvalidator.models import LeafResult
+
+        leaf = LeafResult(qname="www.example.com", record_type="A")
+
+        # "." is present; "other.com." is absent — simulates unsigned delegation
+        shared_keys = {".": make_dnskey_rrset(".")}
+
+        def mock_build_zones(fqdn):
+            return [".", "other.com.", "target.other.com."]
+
+        # _check_zone returns True but does NOT populate shared_keys for "other.com."
+        with patch.object(c, "_build_zone_list", side_effect=mock_build_zones):
+            with patch.object(c, "_check_zone", return_value=True):
+                with patch(
+                    "chainvalidator.checker.validate_rrsig_over_rrset",
+                    return_value=(True, 42),
+                ):
+                    result = c._follow_cname(
+                        cname_rr,
+                        cname_rrsig,
+                        dnskeys,
+                        "example.com.",
+                        "www.example.com.",
+                        0,
+                        shared_keys,
+                        leaf,
+                    )
+        assert result is False
+        assert any("unsigned (insecure delegation)" in e for e in c.errors)
+
+    def test_cname_target_zone_no_validated_keys(self):
+        """_follow_cname returns False when the target zone has keys=None."""
+        c = self._checker_with_ns_map()
+        dnskeys = make_dnskey_rrset("example.com.")
+
+        cname_rr = make_cname_rrset("www.example.com.", "target.example.com.")
+        cname_rrsig = make_rrsig_rrset(
+            "www.example.com.", type_covered=dns.rdatatype.CNAME
+        )
+
+        from chainvalidator.models import LeafResult
+
+        leaf = LeafResult(qname="www.example.com", record_type="A")
+
+        # Target zone is present with None — insecure zone, no usable keys
+        shared_keys = {".": make_dnskey_rrset("."), "target.example.com.": None}
+
+        def mock_build_zones(fqdn):
+            return [".", "target.example.com."]
+
+        with patch.object(c, "_build_zone_list", side_effect=mock_build_zones):
+            with patch(
+                "chainvalidator.checker.validate_rrsig_over_rrset",
+                return_value=(True, 42),
+            ):
+                result = c._follow_cname(
+                    cname_rr,
+                    cname_rrsig,
+                    dnskeys,
+                    "example.com.",
+                    "www.example.com.",
+                    0,
+                    shared_keys,
+                    leaf,
+                )
+        assert result is False
+        assert any("has no validated keys" in e for e in c.errors)
 
 
 # ---------------------------------------------------------------------------

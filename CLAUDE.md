@@ -63,7 +63,7 @@ tests/              ← pytest suite mirroring source structure
 ## Key Conventions
 
 - **Only public API:** `assessor.assess()` — CLI and tests call this, not `DNSSECChecker` directly
-- **Exit codes:** 0 SECURE, 2 INSECURE, 1 BOGUS/ERROR
+- **Exit codes:** 0 SECURE, 1 INSECURE/BOGUS/ERROR, 2 network/connection error
 - **Output formats:** inferred from file extension in `reporter.py:_FORMAT_BY_EXT`
 - **Commit style:** conventional commits (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`)
 - **Root server selection:** `constants.pick_root_server()` uses `secrets.randbelow` — no `random`

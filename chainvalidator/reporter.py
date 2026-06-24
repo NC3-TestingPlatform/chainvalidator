@@ -149,11 +149,11 @@ def save_report(path: str) -> None:
             "Use a .txt, .svg, .html, or .htm extension."
         )
     if fmt == "text":
-        console.save_text(path, clear=False)
+        _console.save_text(path, clear=False)
     elif fmt == "svg":
-        console.save_svg(path, clear=False)
+        _console.save_svg(path, clear=False)
     else:
-        console.save_html(path, clear=False)
+        _console.save_html(path, clear=False)
 
 
 # ---------------------------------------------------------------------------

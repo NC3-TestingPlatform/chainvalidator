@@ -25,7 +25,7 @@ capture it:
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from chainvalidator.checker import DNSSECChecker
 from chainvalidator.constants import DNS_TIMEOUT
@@ -75,11 +75,11 @@ def assess(
     :rtype: ~chainvalidator.models.DNSSECReport
     :raises ValueError: If *domain* or *record_type* is syntactically invalid.
     """
-    if progress_cb:
+    if progress_cb is not None:
         progress_cb(f"Resolving zone hierarchy for {domain} …")
     checker = DNSSECChecker(domain, record_type=record_type, timeout=timeout)
 
-    if progress_cb:
+    if progress_cb is not None:
         progress_cb("Fetching IANA trust anchor …")
     checker.check()
 

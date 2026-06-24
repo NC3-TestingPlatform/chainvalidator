@@ -102,7 +102,17 @@ def extract_rrsets(
     :rtype: tuple[dns.rrset.RRset or None, dns.rrset.RRset or None]
     """
     rrset = rrsig = None
-    for section in (response.answer, response.authority, response.additional):
+    # First pass: answer section only (highest priority).
+    for rr in response.answer:
+        if rr.rdtype == rdtype and rrset is None:
+            rrset = rr
+        elif rr.rdtype == dns.rdatatype.RRSIG and rrsig is None:
+            for sig in rr:
+                if sig.type_covered == rdtype:
+                    rrsig = rr
+                    break
+    # Second pass: authority and additional sections (fallback only).
+    for section in (response.authority, response.additional):
         for rr in section:
             if rr.rdtype == rdtype and rrset is None:
                 rrset = rr
