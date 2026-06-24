@@ -9,6 +9,10 @@ Version numbers follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+---
+
+## [0.1.5] — 2026-06-24
+
 ### Fixed
 - **H1** — `cli.py`: collapsed `Status.ERROR → exit 2` branches in both JSON and non-JSON
   paths to `else → exit 1`; platform convention (global CLAUDE.md) reserves exit 2 for
@@ -119,7 +123,8 @@ Version numbers follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ---
 
-[Unreleased]: https://github.com/NC3-TestingPlatform/chainvalidator/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/NC3-TestingPlatform/chainvalidator/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/NC3-TestingPlatform/chainvalidator/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/NC3-TestingPlatform/chainvalidator/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/NC3-TestingPlatform/chainvalidator/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/NC3-TestingPlatform/chainvalidator/compare/v0.1.1...v0.1.2
